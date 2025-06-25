@@ -14,15 +14,15 @@ const EligibilityTest = () => {
     let riskFactors = [];
 
     // Weekly Transactions Analysis
-    if (userData.weeklyTransactions === 'More than 50') {
+    if (userData.weeklyTransactions === '100+') {
       score += 80;
       factors.push({ name: 'Transaction Volume', score: 95, status: 'excellent', impact: 'positive' });
       eligibilityReasons.push('High transaction volume indicates strong business activity');
-    } else if (userData.weeklyTransactions === '31–50') {
+    } else if (userData.weeklyTransactions === '51-100') {
       score += 60;
       factors.push({ name: 'Transaction Volume', score: 85, status: 'good', impact: 'positive' });
       eligibilityReasons.push('Good transaction volume shows consistent business operations');
-    } else if (userData.weeklyTransactions === '10–30') {
+    } else if (userData.weeklyTransactions === '11-50') {
       score += 30;
       factors.push({ name: 'Transaction Volume', score: 70, status: 'fair', impact: 'neutral' });
       eligibilityReasons.push('Moderate transaction volume indicates developing business');
@@ -33,15 +33,15 @@ const EligibilityTest = () => {
     }
 
     // Monthly Revenue Analysis
-    if (userData.monthlyRevenue === 'More than $1,000') {
+    if (userData.monthlyRevenue === 'Over $10,000') {
       score += 70;
       factors.push({ name: 'Revenue Strength', score: 92, status: 'excellent', impact: 'positive' });
       eligibilityReasons.push('Strong monthly revenue demonstrates business viability');
-    } else if (userData.monthlyRevenue === '$501–$1,000') {
+    } else if (userData.monthlyRevenue === '$5,000 - $10,000') {
       score += 50;
       factors.push({ name: 'Revenue Strength', score: 80, status: 'good', impact: 'positive' });
       eligibilityReasons.push('Solid revenue base supports loan repayment capacity');
-    } else if (userData.monthlyRevenue === '$100–$500') {
+    } else if (userData.monthlyRevenue === '$1,000 - $5,000') {
       score += 25;
       factors.push({ name: 'Revenue Strength', score: 65, status: 'fair', impact: 'neutral' });
       eligibilityReasons.push('Moderate revenue requires careful loan sizing');
@@ -52,14 +52,18 @@ const EligibilityTest = () => {
     }
 
     // Record Keeping Analysis
-    if (userData.recordKeeping === 'Yes, digitally') {
+    if (userData.recordKeeping === 'Digital software/apps') {
       score += 50;
       factors.push({ name: 'Financial Management', score: 90, status: 'excellent', impact: 'positive' });
       eligibilityReasons.push('Digital record keeping shows strong financial discipline');
-    } else if (userData.recordKeeping === 'Yes, in a notebook') {
+    } else if (userData.recordKeeping === 'Spreadsheets') {
       score += 30;
       factors.push({ name: 'Financial Management', score: 75, status: 'good', impact: 'positive' });
-      eligibilityReasons.push('Manual record keeping demonstrates financial awareness');
+      eligibilityReasons.push('Spreadsheet tracking demonstrates financial awareness');
+    } else if (userData.recordKeeping === 'Paper records') {
+      score += 15;
+      factors.push({ name: 'Financial Management', score: 60, status: 'fair', impact: 'neutral' });
+      eligibilityReasons.push('Paper records show basic financial tracking');
     } else {
       score -= 20;
       factors.push({ name: 'Financial Management', score: 35, status: 'poor', impact: 'negative' });
@@ -67,25 +71,37 @@ const EligibilityTest = () => {
     }
 
     // Mobile Money Usage
-    if (userData.mobileMoney === 'Yes') {
+    if (userData.mobileMoney === 'Yes, regularly') {
       score += 40;
       factors.push({ name: 'Digital Finance Adoption', score: 85, status: 'excellent', impact: 'positive' });
-      eligibilityReasons.push('Mobile money usage shows digital financial literacy');
-    } else {
+      eligibilityReasons.push('Regular mobile money usage shows digital financial literacy');
+    } else if (userData.mobileMoney === 'Yes, occasionally') {
+      score += 25;
+      factors.push({ name: 'Digital Finance Adoption', score: 70, status: 'good', impact: 'positive' });
+      eligibilityReasons.push('Occasional mobile money usage indicates digital awareness');
+    } else if (userData.mobileMoney === 'No, but interested') {
       score += 10;
-      factors.push({ name: 'Digital Finance Adoption', score: 50, status: 'fair', impact: 'neutral' });
-      eligibilityReasons.push('Traditional payment methods are acceptable but limit digital verification');
+      factors.push({ name: 'Digital Finance Adoption', score: 55, status: 'fair', impact: 'neutral' });
+      eligibilityReasons.push('Interest in mobile money shows willingness to adopt digital finance');
+    } else {
+      score += 5;
+      factors.push({ name: 'Digital Finance Adoption', score: 40, status: 'poor', impact: 'negative' });
+      riskFactors.push('Limited digital finance adoption may restrict verification options');
     }
 
     // Social Media Promotion
-    if (userData.socialMediaPromotion === 'Yes, regularly') {
+    if (userData.socialMediaPromotion === 'Yes, actively') {
       score += 35;
       factors.push({ name: 'Business Visibility', score: 88, status: 'excellent', impact: 'positive' });
       eligibilityReasons.push('Active social media presence indicates business growth mindset');
-    } else if (userData.socialMediaPromotion === 'Yes, sometimes') {
+    } else if (userData.socialMediaPromotion === 'Yes, occasionally') {
       score += 20;
       factors.push({ name: 'Business Visibility', score: 70, status: 'good', impact: 'positive' });
       eligibilityReasons.push('Some social media activity shows marketing awareness');
+    } else if (userData.socialMediaPromotion === 'No, but planning to') {
+      score += 10;
+      factors.push({ name: 'Business Visibility', score: 55, status: 'fair', impact: 'neutral' });
+      eligibilityReasons.push('Plans for social media show growth orientation');
     } else {
       score += 5;
       factors.push({ name: 'Business Visibility', score: 45, status: 'fair', impact: 'neutral' });
@@ -93,18 +109,18 @@ const EligibilityTest = () => {
     }
 
     // Communication Methods
-    if (userData.communicationMethod === 'Both') {
+    if (userData.communicationMethod === 'Email') {
       score += 30;
       factors.push({ name: 'Customer Communication', score: 85, status: 'excellent', impact: 'positive' });
-      eligibilityReasons.push('Multiple communication channels show professional business operations');
-    } else if (userData.communicationMethod === 'WhatsApp Business') {
+      eligibilityReasons.push('Email communication shows professional business operations');
+    } else if (userData.communicationMethod === 'Text messages/WhatsApp') {
       score += 25;
       factors.push({ name: 'Customer Communication', score: 80, status: 'good', impact: 'positive' });
-      eligibilityReasons.push('WhatsApp Business usage indicates modern customer service');
-    } else if (userData.communicationMethod === 'SMS') {
+      eligibilityReasons.push('WhatsApp/SMS usage indicates modern customer service');
+    } else if (userData.communicationMethod === 'Phone calls') {
       score += 15;
       factors.push({ name: 'Customer Communication', score: 65, status: 'fair', impact: 'neutral' });
-      eligibilityReasons.push('SMS communication provides basic customer interaction');
+      eligibilityReasons.push('Phone communication provides direct customer interaction');
     } else {
       score -= 10;
       factors.push({ name: 'Customer Communication', score: 40, status: 'poor', impact: 'negative' });
@@ -112,15 +128,15 @@ const EligibilityTest = () => {
     }
 
     // Staff Count Analysis
-    if (userData.staffCount === 'More than 5') {
+    if (userData.staffCount === 'More than 10 people') {
       score += 45;
       factors.push({ name: 'Business Scale', score: 90, status: 'excellent', impact: 'positive' });
       eligibilityReasons.push('Large team indicates established business operations');
-    } else if (userData.staffCount === '3–5 helpers') {
+    } else if (userData.staffCount === '6-10 people') {
       score += 35;
       factors.push({ name: 'Business Scale', score: 80, status: 'good', impact: 'positive' });
       eligibilityReasons.push('Growing team shows business expansion');
-    } else if (userData.staffCount === '1–2 helpers') {
+    } else if (userData.staffCount === '2-5 people') {
       score += 20;
       factors.push({ name: 'Business Scale', score: 70, status: 'good', impact: 'positive' });
       eligibilityReasons.push('Small team indicates business growth potential');
@@ -131,15 +147,15 @@ const EligibilityTest = () => {
     }
 
     // Business Duration
-    if (userData.businessDuration === 'More than 2 years') {
+    if (userData.businessDuration === 'More than 3 years') {
       score += 60;
       factors.push({ name: 'Business Maturity', score: 95, status: 'excellent', impact: 'positive' });
       eligibilityReasons.push('Established business history demonstrates stability');
-    } else if (userData.businessDuration === '1–2 years') {
+    } else if (userData.businessDuration === '1-3 years') {
       score += 40;
       factors.push({ name: 'Business Maturity', score: 80, status: 'good', impact: 'positive' });
       eligibilityReasons.push('Good business track record shows sustainability');
-    } else if (userData.businessDuration === '6–12 months') {
+    } else if (userData.businessDuration === '6 months - 1 year') {
       score += 20;
       factors.push({ name: 'Business Maturity', score: 65, status: 'fair', impact: 'neutral' });
       eligibilityReasons.push('Developing business with some operational history');

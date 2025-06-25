@@ -6,6 +6,7 @@ import Home from './pages/Home';
 import SignUp from './pages/SignUp';
 import EligibilityTest from './pages/EligibilityTest';
 import LoanDashboard from './pages/LoanDashboard';
+import PaymentHistory from './pages/PaymentHistory';
 import HowItWorks from './pages/HowItWorks';
 import Pricing from './pages/Pricing';
 import Security from './pages/Security';
@@ -26,6 +27,7 @@ function App() {
             <Route path="/signup" element={<SignUp />} />
             <Route path="/eligibility" element={<EligibilityTest />} />
             <Route path="/dashboard" element={<LoanDashboard />} />
+            <Route path="/payment-history" element={<PaymentHistory />} />
             <Route path="/how-it-works" element={<HowItWorks />} />
             <Route path="/pricing" element={<Pricing />} />
             <Route path="/security" element={<Security />} />

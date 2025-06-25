@@ -4,7 +4,7 @@ import {
   User,
   MapPin,
   Briefcase,
-  Link as LinkIcon,
+  Upload,
   ArrowRight,
   BarChart3,
   DollarSign,
@@ -14,6 +14,8 @@ import {
   MessageSquare,
   Users,
   Calendar,
+  X,
+  CheckCircle,
 } from 'lucide-react';
 import { createClient } from '@supabase/supabase-js';
 
@@ -27,6 +29,8 @@ const supabase = createClient(
 const SignUp: React.FC = () => {
   const navigate = useNavigate();
   const [currentStep, setCurrentStep] = useState(1);
+  const [uploadedFiles, setUploadedFiles] = useState<File[]>([]);
+  const [showUploadModal, setShowUploadModal] = useState(false);
 
   /* unified form state */
   const [formData, setFormData] = useState({
@@ -70,6 +74,21 @@ const SignUp: React.FC = () => {
   const handleInputChange = (
     e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>
   ) => setFormData({ ...formData, [e.target.name]: e.target.value });
+
+  const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (e.target.files) {
+      const newFiles = Array.from(e.target.files);
+      setUploadedFiles(prev => [...prev, ...newFiles]);
+    }
+  };
+
+  const removeFile = (index: number) => {
+    setUploadedFiles(prev => prev.filter((_, i) => i !== index));
+  };
+
+  const handleConnectData = () => {
+    setShowUploadModal(true);
+  };
 
   const handleNextStep = () => {
     if (currentStep === 1) {
@@ -125,12 +144,22 @@ const SignUp: React.FC = () => {
       return;
     }
 
-    localStorage.setItem('userId', data![0].id);   // keep uuid for later
+    // Store user data and uploaded files in localStorage
+    localStorage.setItem('userId', data![0].id);
+    localStorage.setItem('userProfile', JSON.stringify(formData));
+    if (uploadedFiles.length > 0) {
+      localStorage.setItem('uploadedDocuments', JSON.stringify(
+        uploadedFiles.map(file => ({
+          name: file.name,
+          size: file.size,
+          type: file.type,
+          uploadDate: new Date().toISOString()
+        }))
+      ));
+    }
+    
     navigate('/eligibility');
   };
-
-  const handleConnectData = () =>
-    alert('Data-connection feature coming soon!');
 
   /* ── small UI helpers (step indicator) ─────────────────── */
   const renderStepIndicator = () => (
@@ -212,26 +241,40 @@ const SignUp: React.FC = () => {
         </div>
       </div>
 
-      {/* Optional connect-data CTA */}
+      {/* Connect data CTA */}
       <div className="bg-gradient-to-r from-blue-50 to-purple-50 p-6 rounded-lg">
         <h3 className="font-semibold mb-2 flex items-center text-gray-900">
-          <LinkIcon className="w-5 h-5 mr-2 text-blue-600"/> Connect Your Data (Optional)
+          <Upload className="w-5 h-5 mr-2 text-blue-600"/> Upload Supporting Documents (Optional)
         </h3>
         <p className="text-gray-600 mb-4">
-          Securely connect your financial accounts to improve your loan assessment and get better rates.
+          Upload financial documents, business licenses, or other supporting materials to improve your loan assessment.
         </p>
         <button
           type="button" onClick={handleConnectData}
-          className="w-full py-3 border-2 border-blue-600 text-blue-600 rounded-lg font-semibold hover:bg-blue-600 hover:text-white"
+          className="w-full py-3 border-2 border-blue-600 text-blue-600 rounded-lg font-semibold hover:bg-blue-600 hover:text-white transition-colors"
         >
-          Connect Data Sources
+          Upload Documents
         </button>
+        
+        {uploadedFiles.length > 0 && (
+          <div className="mt-4">
+            <p className="text-sm font-medium text-gray-700 mb-2">Uploaded Files:</p>
+            <div className="space-y-2">
+              {uploadedFiles.map((file, index) => (
+                <div key={index} className="flex items-center justify-between p-2 bg-white rounded border">
+                  <span className="text-sm text-gray-600">{file.name}</span>
+                  <CheckCircle className="w-4 h-4 text-green-600" />
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
       </div>
 
       {/* continue button */}
       <button
         type="button" onClick={handleNextStep}
-        className="w-full py-4 bg-gradient-to-r from-blue-600 to-purple-600 text-white rounded-lg font-semibold flex items-center justify-center space-x-2"
+        className="w-full py-4 bg-gradient-to-r from-blue-600 to-purple-600 text-white rounded-lg font-semibold flex items-center justify-center space-x-2 hover:shadow-lg transition-all duration-200"
       >
         <span>Continue to Business Questions</span>
         <ArrowRight className="w-5 h-5"/>
@@ -431,13 +474,13 @@ const SignUp: React.FC = () => {
         <button
           type="button"
           onClick={handlePrevStep}
-          className="flex-1 py-3 border border-gray-300 text-gray-700 rounded-lg font-semibold hover:bg-gray-50"
+          className="flex-1 py-3 border border-gray-300 text-gray-700 rounded-lg font-semibold hover:bg-gray-50 transition-colors"
         >
           Back
         </button>
         <button
           type="submit"
-          className="flex-1 py-3 bg-gradient-to-r from-blue-600 to-purple-600 text-white rounded-lg font-semibold hover:from-blue-700 hover:to-purple-700"
+          className="flex-1 py-3 bg-gradient-to-r from-blue-600 to-purple-600 text-white rounded-lg font-semibold hover:shadow-lg transition-all duration-200"
         >
           Complete Registration
         </button>
@@ -485,9 +528,71 @@ const SignUp: React.FC = () => {
           <div className="mt-8 text-center text-sm text-gray-500">
             <p>
               By signing up, you agree to our{' '}
-              <a href="#" className="text-blue-600 hover:underline">Terms of Service</a> and{' '}
-              <a href="#" className="text-blue-600 hover:underline">Privacy Policy</a>
+              <Link to="/terms" className="text-blue-600 hover:underline">Terms of Service</Link> and{' '}
+              <Link to="/privacy" className="text-blue-600 hover:underline">Privacy Policy</Link>
             </p>
+          </div>
+        )}
+
+        {/* Upload Modal */}
+        {showUploadModal && (
+          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+            <div className="bg-white rounded-2xl shadow-xl p-8 max-w-md w-full">
+              <div className="flex items-center justify-between mb-6">
+                <h2 className="text-2xl font-bold text-gray-900">Upload Documents</h2>
+                <button
+                  onClick={() => setShowUploadModal(false)}
+                  className="p-2 hover:bg-gray-100 rounded-lg transition-colors"
+                >
+                  <X className="w-5 h-5" />
+                </button>
+              </div>
+              
+              <div className="mb-6">
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Select files to upload
+                </label>
+                <input
+                  type="file"
+                  multiple
+                  accept=".pdf,.doc,.docx,.jpg,.jpeg,.png"
+                  onChange={handleFileUpload}
+                  className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
+                />
+                <p className="text-xs text-gray-500 mt-1">
+                  Accepted formats: PDF, DOC, DOCX, JPG, PNG (Max 5MB each)
+                </p>
+              </div>
+
+              {uploadedFiles.length > 0 && (
+                <div className="mb-6">
+                  <h3 className="font-medium text-gray-900 mb-3">Uploaded Files:</h3>
+                  <div className="space-y-2 max-h-40 overflow-y-auto">
+                    {uploadedFiles.map((file, index) => (
+                      <div key={index} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
+                        <div className="flex items-center space-x-2">
+                          <FileText className="w-4 h-4 text-blue-600" />
+                          <span className="text-sm text-gray-700 truncate">{file.name}</span>
+                        </div>
+                        <button
+                          onClick={() => removeFile(index)}
+                          className="p-1 hover:bg-gray-200 rounded transition-colors"
+                        >
+                          <X className="w-4 h-4 text-gray-500" />
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              <button
+                onClick={() => setShowUploadModal(false)}
+                className="w-full py-3 bg-gradient-to-r from-blue-600 to-purple-600 text-white rounded-lg font-semibold hover:shadow-lg transition-all duration-200"
+              >
+                Done
+              </button>
+            </div>
           </div>
         )}
       </div>
