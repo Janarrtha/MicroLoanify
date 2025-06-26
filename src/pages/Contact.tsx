@@ -284,7 +284,7 @@ const Contact = () => {
 
 export default Contact;
 
-const supabase = createClient('https://your-project.supabase.co', 'public-anon-key');
+const supabase = createClient('https://xycycbfnczxitjtxwvwn.supabase.co', 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Inh5Y3ljYmZuY3p4aXRqdHh3dnduIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTA1MDIxMDIsImV4cCI6MjA2NjA3ODEwMn0.5BQPJR9aR1e6e6IAImaFnQ8qGYtDqYCJXo1y8srtbcQ');
 
 const handleSubmit = async (e: React.FormEvent) => {
   e.preventDefault();
