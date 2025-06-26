@@ -283,3 +283,27 @@ const Contact = () => {
 };
 
 export default Contact;
+
+const supabase = createClient('https://your-project.supabase.co', 'public-anon-key');
+
+const handleSubmit = async (e: React.FormEvent) => {
+  e.preventDefault();
+
+  const formData = {
+    full_name,
+    email,
+    category,
+    subject,
+    message
+  };
+
+  const { data, error } = await supabase.from('contact_messages').insert([formData]);
+
+  if (error) {
+    console.error('Submission error:', error);
+    alert('Failed to send message.');
+  } else {
+    alert('Message sent!');
+    // Optionally reset form
+  }
+};
