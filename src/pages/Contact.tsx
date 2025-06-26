@@ -290,7 +290,7 @@ const handleSubmit = async (e: React.FormEvent) => {
   e.preventDefault();
 
   const formData = {
-    full_name,
+    name,
     email,
     category,
     subject,
