@@ -2,6 +2,12 @@ import React, { useState } from 'react';
 import { Mail, Phone, MapPin, MessageSquare, Send, Clock } from 'lucide-react';
 import { createClient } from '@supabase/supabase-js';
 
+// Initialize Supabase client
+const supabase = createClient(
+  import.meta.env.VITE_SUPABASE_URL!,
+  import.meta.env.VITE_SUPABASE_ANON_KEY!
+);
+
 const Contact = () => {
   const [formData, setFormData] = useState({
     name: '',
@@ -11,6 +17,8 @@ const Contact = () => {
     category: ''
   });
 
+  const [isSubmitting, setIsSubmitting] = useState(false);
+
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => {
     setFormData({
       ...formData,
@@ -18,17 +26,45 @@ const Contact = () => {
     });
   };
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    // Handle form submission
-    alert('Thank you for your message! We\'ll get back to you within 24 hours.');
-    setFormData({
-      name: '',
-      email: '',
-      subject: '',
-      message: '',
-      category: ''
-    });
+    setIsSubmitting(true);
+
+    try {
+      // Insert contact message into Supabase
+      const { data, error } = await supabase
+        .from('contact_messages')
+        .insert([
+          {
+            name: formData.name,
+            email: formData.email,
+            category: formData.category,
+            subject: formData.subject,
+            message: formData.message,
+            created_at: new Date().toISOString()
+          }
+        ]);
+
+      if (error) {
+        console.error('Supabase error:', error);
+        alert('Failed to send message. Please try again.');
+      } else {
+        alert('Thank you for your message! We\'ll get back to you within 24 hours.');
+        // Reset form
+        setFormData({
+          name: '',
+          email: '',
+          subject: '',
+          message: '',
+          category: ''
+        });
+      }
+    } catch (error) {
+      console.error('Submission error:', error);
+      alert('An error occurred. Please try again.');
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   return (
@@ -145,6 +181,7 @@ const Contact = () => {
                       onChange={handleInputChange}
                       className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                       placeholder="Your full name"
+                      disabled={isSubmitting}
                     />
                   </div>
                   
@@ -161,6 +198,7 @@ const Contact = () => {
                       onChange={handleInputChange}
                       className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                       placeholder="your.email@example.com"
+                      disabled={isSubmitting}
                     />
                   </div>
                 </div>
@@ -176,6 +214,7 @@ const Contact = () => {
                     value={formData.category}
                     onChange={handleInputChange}
                     className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                    disabled={isSubmitting}
                   >
                     <option value="">Select a category</option>
                     <option value="general">General Inquiry</option>
@@ -201,6 +240,7 @@ const Contact = () => {
                     onChange={handleInputChange}
                     className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                     placeholder="Brief description of your inquiry"
+                    disabled={isSubmitting}
                   />
                 </div>
                 
@@ -217,15 +257,26 @@ const Contact = () => {
                     onChange={handleInputChange}
                     className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent resize-none"
                     placeholder="Please provide details about your inquiry..."
+                    disabled={isSubmitting}
                   />
                 </div>
                 
                 <button
                   type="submit"
-                  className="w-full py-4 bg-gradient-to-r from-blue-600 to-purple-600 text-white rounded-lg font-semibold hover:shadow-lg transition-all duration-200 flex items-center justify-center space-x-2"
+                  disabled={isSubmitting}
+                  className="w-full py-4 bg-gradient-to-r from-blue-600 to-purple-600 text-white rounded-lg font-semibold hover:shadow-lg transition-all duration-200 flex items-center justify-center space-x-2 disabled:opacity-50 disabled:cursor-not-allowed"
                 >
-                  <Send className="w-5 h-5" />
-                  <span>Send Message</span>
+                  {isSubmitting ? (
+                    <>
+                      <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-white"></div>
+                      <span>Sending...</span>
+                    </>
+                  ) : (
+                    <>
+                      <Send className="w-5 h-5" />
+                      <span>Send Message</span>
+                    </>
+                  )}
                 </button>
               </form>
             </div>
@@ -283,27 +334,3 @@ const Contact = () => {
 };
 
 export default Contact;
-
-const supabase = createClient('https://xycycbfnczxitjtxwvwn.supabase.co', 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Inh5Y3ljYmZuY3p4aXRqdHh3dnduIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTA1MDIxMDIsImV4cCI6MjA2NjA3ODEwMn0.5BQPJR9aR1e6e6IAImaFnQ8qGYtDqYCJXo1y8srtbcQ');
-
-const handleSubmit = async (e: React.FormEvent) => {
-  e.preventDefault();
-
-  const formData = {
-    name,
-    email,
-    category,
-    subject,
-    message
-  };
-
-  const { data, error } = await supabase.from('contact_messages').insert([formData]);
-
-  if (error) {
-    console.error('Submission error:', error);
-    alert('Failed to send message.');
-  } else {
-    alert('Message sent!');
-    // Optionally reset form
-  }
-};
