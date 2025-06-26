@@ -13,8 +13,17 @@ import {
   AlertCircle,
   Download,
   Eye,
-  X
+  X,
+  Plus,
+  Trash2
 } from 'lucide-react';
+import { createClient } from '@supabase/supabase-js';
+
+// Initialize Supabase client
+const supabase = createClient(
+  import.meta.env.VITE_SUPABASE_URL!,
+  import.meta.env.VITE_SUPABASE_ANON_KEY!
+);
 
 const LoanDashboard = () => {
   const navigate = useNavigate();
@@ -23,8 +32,11 @@ const LoanDashboard = () => {
   const [showLoanApplication, setShowLoanApplication] = useState(false);
   const [showPaymentModal, setShowPaymentModal] = useState(false);
   const [showDocuments, setShowDocuments] = useState(false);
+  const [showAddCard, setShowAddCard] = useState(false);
   const [uploadedDocuments, setUploadedDocuments] = useState<any[]>([]);
   const [loanData, setLoanData] = useState<any>(null);
+  const [paymentCards, setPaymentCards] = useState<any[]>([]);
+  const [selectedCard, setSelectedCard] = useState<string>('');
 
   useEffect(() => {
     // Load user data from localStorage
@@ -48,7 +60,36 @@ const LoanDashboard = () => {
     if (storedLoan) {
       setLoanData(JSON.parse(storedLoan));
     }
+
+    // Load payment cards
+    loadPaymentCards();
   }, []);
+
+  const loadPaymentCards = async () => {
+    const userId = localStorage.getItem('userId');
+    if (!userId) return;
+
+    try {
+      const { data, error } = await supabase
+        .from('payment_cards')
+        .select('*')
+        .eq('user_id', userId)
+        .order('created_at', { ascending: false });
+
+      if (error) {
+        console.error('Error loading payment cards:', error);
+      } else {
+        setPaymentCards(data || []);
+        // Set default card as selected
+        const defaultCard = data?.find(card => card.is_default);
+        if (defaultCard) {
+          setSelectedCard(defaultCard.id);
+        }
+      }
+    } catch (error) {
+      console.error('Error loading payment cards:', error);
+    }
+  };
 
   const handleApplyForLoan = () => {
     setShowLoanApplication(true);
@@ -74,8 +115,9 @@ const LoanDashboard = () => {
     alert('Loan application approved! Your funds will be disbursed within 24 hours.');
   };
 
-  const handleMakePayment = (amount: number) => {
-    if (loanData) {
+  const handleMakePayment = (amount: number, cardId: string) => {
+    if (loanData && cardId) {
+      const selectedCardInfo = paymentCards.find(card => card.id === cardId);
       const updatedLoan = {
         ...loanData,
         totalPaid: loanData.totalPaid + amount,
@@ -87,7 +129,9 @@ const LoanDashboard = () => {
             id: Date.now(),
             amount,
             date: new Date().toISOString(),
-            type: 'payment'
+            type: 'payment',
+            card_used: `****${selectedCardInfo?.card_number_last4}`,
+            card_type: selectedCardInfo?.card_type
           }
         ]
       };
@@ -100,6 +144,8 @@ const LoanDashboard = () => {
       setLoanData(updatedLoan);
       setShowPaymentModal(false);
       alert('Payment processed successfully!');
+    } else {
+      alert('Please select a payment card');
     }
   };
 
@@ -109,6 +155,10 @@ const LoanDashboard = () => {
 
   const handleViewDocuments = () => {
     setShowDocuments(true);
+  };
+
+  const handleAddCard = () => {
+    setShowAddCard(true);
   };
 
   // Mock data if no stored data
@@ -164,6 +214,46 @@ const LoanDashboard = () => {
                   </div>
                 </div>
               </div>
+            </div>
+
+            {/* Payment Cards Management */}
+            <div className="bg-white rounded-2xl shadow-xl p-8">
+              <div className="flex items-center justify-between mb-6">
+                <h2 className="text-2xl font-bold text-gray-900">Payment Cards</h2>
+                <button
+                  onClick={handleAddCard}
+                  className="flex items-center space-x-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+                >
+                  <Plus className="w-4 h-4" />
+                  <span>Add Card</span>
+                </button>
+              </div>
+
+              {paymentCards.length === 0 ? (
+                <div className="text-center py-8">
+                  <CreditCard className="w-16 h-16 text-gray-300 mx-auto mb-4" />
+                  <p className="text-gray-500 mb-4">No payment cards added yet</p>
+                  <button
+                    onClick={handleAddCard}
+                    className="px-6 py-3 bg-gradient-to-r from-blue-600 to-purple-600 text-white rounded-lg font-semibold hover:shadow-lg transition-all duration-200"
+                  >
+                    Add Your First Card
+                  </button>
+                </div>
+              ) : (
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  {paymentCards.map((card) => (
+                    <PaymentCardItem
+                      key={card.id}
+                      card={card}
+                      onDelete={() => {
+                        // Handle card deletion
+                        loadPaymentCards();
+                      }}
+                    />
+                  ))}
+                </div>
+              )}
             </div>
 
             {/* Active Loan or Loan Eligibility */}
@@ -256,7 +346,10 @@ const LoanDashboard = () => {
                     </div>
                     <div className="flex-1">
                       <h3 className="font-semibold text-gray-900">Payment Made</h3>
-                      <p className="text-sm text-gray-600">${payment.amount} payment processed</p>
+                      <p className="text-sm text-gray-600">
+                        ${payment.amount} payment processed
+                        {payment.card_used && ` via ${payment.card_type} ${payment.card_used}`}
+                      </p>
                     </div>
                     <span className="text-sm text-gray-500">
                       {new Date(payment.date).toLocaleDateString()}
@@ -364,8 +457,22 @@ const LoanDashboard = () => {
         {showPaymentModal && loanData && (
           <PaymentModal
             monthlyPayment={loanData.monthlyPayment}
+            paymentCards={paymentCards}
+            selectedCard={selectedCard}
+            onCardSelect={setSelectedCard}
             onSubmit={handleMakePayment}
             onClose={() => setShowPaymentModal(false)}
+          />
+        )}
+
+        {/* Add Card Modal */}
+        {showAddCard && (
+          <AddCardModal
+            onClose={() => setShowAddCard(false)}
+            onCardAdded={() => {
+              loadPaymentCards();
+              setShowAddCard(false);
+            }}
           />
         )}
 
@@ -376,6 +483,314 @@ const LoanDashboard = () => {
             onClose={() => setShowDocuments(false)}
           />
         )}
+      </div>
+    </div>
+  );
+};
+
+// Payment Card Item Component
+const PaymentCardItem = ({ card, onDelete }: any) => {
+  const handleDelete = async () => {
+    if (confirm('Are you sure you want to delete this card?')) {
+      try {
+        const { error } = await supabase
+          .from('payment_cards')
+          .delete()
+          .eq('id', card.id);
+
+        if (error) {
+          console.error('Error deleting card:', error);
+          alert('Failed to delete card');
+        } else {
+          onDelete();
+        }
+      } catch (error) {
+        console.error('Error deleting card:', error);
+        alert('Failed to delete card');
+      }
+    }
+  };
+
+  const getCardIcon = (cardType: string) => {
+    switch (cardType.toLowerCase()) {
+      case 'visa':
+        return '💳';
+      case 'mastercard':
+        return '💳';
+      case 'amex':
+        return '💳';
+      default:
+        return '💳';
+    }
+  };
+
+  return (
+    <div className="p-4 border border-gray-200 rounded-lg hover:shadow-md transition-shadow">
+      <div className="flex items-center justify-between mb-2">
+        <div className="flex items-center space-x-2">
+          <span className="text-2xl">{getCardIcon(card.card_type)}</span>
+          <div>
+            <h3 className="font-semibold text-gray-900">{card.card_name}</h3>
+            <p className="text-sm text-gray-600">
+              {card.card_type.toUpperCase()} ****{card.card_number_last4}
+            </p>
+          </div>
+        </div>
+        <button
+          onClick={handleDelete}
+          className="p-2 text-red-600 hover:bg-red-50 rounded-lg transition-colors"
+        >
+          <Trash2 className="w-4 h-4" />
+        </button>
+      </div>
+      <div className="text-xs text-gray-500">
+        Expires {card.expiry_month.toString().padStart(2, '0')}/{card.expiry_year}
+        {card.is_default && <span className="ml-2 text-blue-600 font-semibold">• Default</span>}
+      </div>
+    </div>
+  );
+};
+
+// Add Card Modal Component
+const AddCardModal = ({ onClose, onCardAdded }: any) => {
+  const [cardData, setCardData] = useState({
+    cardName: '',
+    cardNumber: '',
+    expiryMonth: '',
+    expiryYear: '',
+    cvv: '',
+    cardholderName: '',
+    isDefault: false
+  });
+  const [isSubmitting, setIsSubmitting] = useState(false);
+
+  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
+    const { name, value, type } = e.target;
+    setCardData(prev => ({
+      ...prev,
+      [name]: type === 'checkbox' ? (e.target as HTMLInputElement).checked : value
+    }));
+  };
+
+  const detectCardType = (cardNumber: string) => {
+    const number = cardNumber.replace(/\s/g, '');
+    if (number.startsWith('4')) return 'Visa';
+    if (number.startsWith('5') || number.startsWith('2')) return 'Mastercard';
+    if (number.startsWith('3')) return 'Amex';
+    return 'Unknown';
+  };
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setIsSubmitting(true);
+
+    const userId = localStorage.getItem('userId');
+    if (!userId) {
+      alert('User not found. Please sign up again.');
+      setIsSubmitting(false);
+      return;
+    }
+
+    try {
+      const cardType = detectCardType(cardData.cardNumber);
+      const last4 = cardData.cardNumber.slice(-4);
+
+      const { error } = await supabase
+        .from('payment_cards')
+        .insert([
+          {
+            user_id: userId,
+            card_name: cardData.cardName,
+            card_number_last4: last4,
+            card_type: cardType,
+            expiry_month: parseInt(cardData.expiryMonth),
+            expiry_year: parseInt(cardData.expiryYear),
+            cardholder_name: cardData.cardholderName,
+            is_default: cardData.isDefault
+          }
+        ]);
+
+      if (error) {
+        console.error('Error adding card:', error);
+        alert('Failed to add card. Please try again.');
+      } else {
+        alert('Card added successfully!');
+        onCardAdded();
+      }
+    } catch (error) {
+      console.error('Error adding card:', error);
+      alert('Failed to add card. Please try again.');
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  return (
+    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+      <div className="bg-white rounded-2xl shadow-xl p-8 max-w-md w-full max-h-[90vh] overflow-y-auto">
+        <div className="flex items-center justify-between mb-6">
+          <h2 className="text-2xl font-bold text-gray-900">Add Payment Card</h2>
+          <button
+            onClick={onClose}
+            className="p-2 hover:bg-gray-100 rounded-lg transition-colors"
+          >
+            <X className="w-5 h-5" />
+          </button>
+        </div>
+
+        <form onSubmit={handleSubmit} className="space-y-4">
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-2">
+              Card Name (for your reference)
+            </label>
+            <input
+              type="text"
+              name="cardName"
+              required
+              value={cardData.cardName}
+              onChange={handleInputChange}
+              placeholder="e.g., Personal Visa, Business Card"
+              className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
+              disabled={isSubmitting}
+            />
+          </div>
+
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-2">
+              Card Number
+            </label>
+            <input
+              type="text"
+              name="cardNumber"
+              required
+              value={cardData.cardNumber}
+              onChange={handleInputChange}
+              placeholder="1234 5678 9012 3456"
+              maxLength={19}
+              className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
+              disabled={isSubmitting}
+            />
+          </div>
+
+          <div className="grid grid-cols-2 gap-4">
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                Expiry Month
+              </label>
+              <select
+                name="expiryMonth"
+                required
+                value={cardData.expiryMonth}
+                onChange={handleInputChange}
+                className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
+                disabled={isSubmitting}
+              >
+                <option value="">Month</option>
+                {Array.from({ length: 12 }, (_, i) => (
+                  <option key={i + 1} value={i + 1}>
+                    {(i + 1).toString().padStart(2, '0')}
+                  </option>
+                ))}
+              </select>
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                Expiry Year
+              </label>
+              <select
+                name="expiryYear"
+                required
+                value={cardData.expiryYear}
+                onChange={handleInputChange}
+                className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
+                disabled={isSubmitting}
+              >
+                <option value="">Year</option>
+                {Array.from({ length: 10 }, (_, i) => {
+                  const year = new Date().getFullYear() + i;
+                  return (
+                    <option key={year} value={year}>
+                      {year}
+                    </option>
+                  );
+                })}
+              </select>
+            </div>
+          </div>
+
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-2">
+              CVV
+            </label>
+            <input
+              type="text"
+              name="cvv"
+              required
+              value={cardData.cvv}
+              onChange={handleInputChange}
+              placeholder="123"
+              maxLength={4}
+              className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
+              disabled={isSubmitting}
+            />
+          </div>
+
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-2">
+              Cardholder Name
+            </label>
+            <input
+              type="text"
+              name="cardholderName"
+              required
+              value={cardData.cardholderName}
+              onChange={handleInputChange}
+              placeholder="John Doe"
+              className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
+              disabled={isSubmitting}
+            />
+          </div>
+
+          <div className="flex items-center">
+            <input
+              type="checkbox"
+              name="isDefault"
+              checked={cardData.isDefault}
+              onChange={handleInputChange}
+              className="mr-2"
+              disabled={isSubmitting}
+            />
+            <label className="text-sm text-gray-700">
+              Set as default payment method
+            </label>
+          </div>
+
+          <div className="flex space-x-4 pt-4">
+            <button
+              type="button"
+              onClick={onClose}
+              className="flex-1 py-3 border border-gray-300 text-gray-700 rounded-lg font-semibold hover:bg-gray-50 transition-colors"
+              disabled={isSubmitting}
+            >
+              Cancel
+            </button>
+            <button
+              type="submit"
+              className="flex-1 py-3 bg-gradient-to-r from-blue-600 to-purple-600 text-white rounded-lg font-semibold hover:shadow-lg transition-all duration-200 disabled:opacity-50"
+              disabled={isSubmitting}
+            >
+              {isSubmitting ? 'Adding...' : 'Add Card'}
+            </button>
+          </div>
+        </form>
+
+        <div className="mt-4 p-3 bg-yellow-50 rounded-lg">
+          <p className="text-xs text-yellow-800">
+            <strong>Security Note:</strong> In production, card details would be securely tokenized. 
+            This is a demo environment.
+          </p>
+        </div>
       </div>
     </div>
   );
@@ -465,8 +880,16 @@ const LoanApplicationModal = ({ maxAmount, onSubmit, onClose }: any) => {
 };
 
 // Payment Modal Component
-const PaymentModal = ({ monthlyPayment, onSubmit, onClose }: any) => {
+const PaymentModal = ({ monthlyPayment, paymentCards, selectedCard, onCardSelect, onSubmit, onClose }: any) => {
   const [paymentAmount, setPaymentAmount] = useState(monthlyPayment);
+
+  const handleSubmit = () => {
+    if (!selectedCard) {
+      alert('Please select a payment card');
+      return;
+    }
+    onSubmit(paymentAmount, selectedCard);
+  };
 
   return (
     <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
@@ -491,13 +914,27 @@ const PaymentModal = ({ monthlyPayment, onSubmit, onClose }: any) => {
 
         <div className="mb-6">
           <label className="block text-sm font-medium text-gray-700 mb-2">
-            Payment Method
+            Payment Card
           </label>
-          <select className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent">
-            <option>Bank Transfer</option>
-            <option>Mobile Money</option>
-            <option>Credit Card</option>
-          </select>
+          {paymentCards.length === 0 ? (
+            <div className="p-4 border border-gray-200 rounded-lg text-center">
+              <p className="text-gray-500 mb-2">No payment cards available</p>
+              <p className="text-sm text-gray-400">Add a card in the Payment Cards section</p>
+            </div>
+          ) : (
+            <select 
+              value={selectedCard}
+              onChange={(e) => onCardSelect(e.target.value)}
+              className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+            >
+              <option value="">Select a card</option>
+              {paymentCards.map((card: any) => (
+                <option key={card.id} value={card.id}>
+                  {card.card_name} - {card.card_type} ****{card.card_number_last4}
+                </option>
+              ))}
+            </select>
+          )}
         </div>
         
         <div className="flex space-x-4">
@@ -508,7 +945,7 @@ const PaymentModal = ({ monthlyPayment, onSubmit, onClose }: any) => {
             Cancel
           </button>
           <button
-            onClick={() => onSubmit(paymentAmount)}
+            onClick={handleSubmit}
             className="flex-1 py-3 bg-gradient-to-r from-blue-600 to-purple-600 text-white rounded-lg font-semibold hover:shadow-lg transition-all duration-200"
           >
             Process Payment
