@@ -16,6 +16,8 @@ import {
   Calendar,
   X,
   CheckCircle,
+  Mail,
+  Lock,
 } from 'lucide-react';
 import { createClient } from '@supabase/supabase-js';
 
@@ -34,6 +36,9 @@ const SignUp: React.FC = () => {
 
   /* unified form state */
   const [formData, setFormData] = useState({
+    /* auth info */
+    email: '',
+    password: '',
     /* basic info */
     name: '',
     country: '',
@@ -92,7 +97,7 @@ const SignUp: React.FC = () => {
 
   const handleNextStep = () => {
     if (currentStep === 1) {
-      if (!formData.name || !formData.country || !formData.businessType) {
+      if (!formData.email || !formData.password || !formData.name || !formData.country || !formData.businessType) {
         alert('Please fill in all required fields');
         return;
       }
@@ -116,49 +121,73 @@ const SignUp: React.FC = () => {
       }
     }
 
-    /* insert into Supabase */
-    const { data, error } = await supabase
-      .from('users')
-      .insert([
-        {
-          /* basic */
-          name:              formData.name,
-          country:           formData.country,
-          business_type:     formData.businessType,
-          /* business answers 1-col-per-field */
-          weekly_transactions:    formData.weeklyTransactions,
-          monthly_revenue:        formData.monthlyRevenue,
-          record_keeping:         formData.recordKeeping,
-          mobile_money:           formData.mobileMoney,
-          social_media_promotion: formData.socialMediaPromotion,
-          communication_method:   formData.communicationMethod,
-          staff_count:            formData.staffCount,
-          business_duration:      formData.businessDuration,
-        },
-      ])
-      .select();
+    try {
+      /* Step 1: Sign up the user with Supabase Auth */
+      const { data: authData, error: authError } = await supabase.auth.signUp({
+        email: formData.email,
+        password: formData.password,
+      });
 
-    if (error) {
-      console.error('❌ Supabase insert error:', error.message);
-      alert('Something went wrong – please try again.');
-      return;
-    }
+      if (authError) {
+        console.error('❌ Supabase auth error:', authError.message);
+        alert('Authentication failed: ' + authError.message);
+        return;
+      }
 
-    // Store user data and uploaded files in localStorage
-    localStorage.setItem('userId', data![0].id);
-    localStorage.setItem('userProfile', JSON.stringify(formData));
-    if (uploadedFiles.length > 0) {
-      localStorage.setItem('uploadedDocuments', JSON.stringify(
-        uploadedFiles.map(file => ({
-          name: file.name,
-          size: file.size,
-          type: file.type,
-          uploadDate: new Date().toISOString()
-        }))
-      ));
+      if (!authData.user) {
+        alert('Authentication failed - no user returned');
+        return;
+      }
+
+      /* Step 2: Insert user profile data with the authenticated user's ID */
+      const { data, error } = await supabase
+        .from('users')
+        .insert([
+          {
+            /* use the authenticated user's ID */
+            id: authData.user.id,
+            /* basic */
+            name: formData.name,
+            country: formData.country,
+            business_type: formData.businessType,
+            /* business answers 1-col-per-field */
+            weekly_transactions: formData.weeklyTransactions,
+            monthly_revenue: formData.monthlyRevenue,
+            record_keeping: formData.recordKeeping,
+            mobile_money: formData.mobileMoney,
+            social_media_promotion: formData.socialMediaPromotion,
+            communication_method: formData.communicationMethod,
+            staff_count: formData.staffCount,
+            business_duration: formData.businessDuration,
+          },
+        ])
+        .select();
+
+      if (error) {
+        console.error('❌ Supabase insert error:', error.message);
+        alert('Something went wrong – please try again.');
+        return;
+      }
+
+      // Store user data and uploaded files in localStorage
+      localStorage.setItem('userId', authData.user.id);
+      localStorage.setItem('userProfile', JSON.stringify(formData));
+      if (uploadedFiles.length > 0) {
+        localStorage.setItem('uploadedDocuments', JSON.stringify(
+          uploadedFiles.map(file => ({
+            name: file.name,
+            size: file.size,
+            type: file.type,
+            uploadDate: new Date().toISOString()
+          }))
+        ));
+      }
+      
+      navigate('/eligibility');
+    } catch (error) {
+      console.error('❌ Unexpected error:', error);
+      alert('An unexpected error occurred. Please try again.');
     }
-    
-    navigate('/eligibility');
   };
 
   /* ── small UI helpers (step indicator) ─────────────────── */
@@ -179,6 +208,41 @@ const SignUp: React.FC = () => {
   /* ── step-1: basic info UI ─────────────────────────────── */
   const renderBasicInfo = () => (
     <div className="space-y-6">
+      {/* Email */}
+      <div>
+        <label htmlFor="email" className="block text-sm font-medium text-gray-700 mb-2">
+          Email Address
+        </label>
+        <div className="relative">
+          <Mail className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 w-5 h-5"/>
+          <input
+            id="email" name="email" type="email" required
+            value={formData.email} onChange={handleInputChange}
+            placeholder="Enter your email address"
+            className="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
+          />
+        </div>
+      </div>
+
+      {/* Password */}
+      <div>
+        <label htmlFor="password" className="block text-sm font-medium text-gray-700 mb-2">
+          Password
+        </label>
+        <div className="relative">
+          <Lock className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 w-5 h-5"/>
+          <input
+            id="password" name="password" type="password" required
+            value={formData.password} onChange={handleInputChange}
+            placeholder="Create a secure password"
+            className="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
+          />
+        </div>
+        <p className="text-xs text-gray-500 mt-1">
+          Password should be at least 6 characters long
+        </p>
+      </div>
+
       {/* Name */}
       <div>
         <label htmlFor="name" className="block text-sm font-medium text-gray-700 mb-2">
