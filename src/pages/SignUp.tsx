@@ -33,6 +33,7 @@ const SignUp: React.FC = () => {
   const [currentStep, setCurrentStep] = useState(1);
   const [uploadedFiles, setUploadedFiles] = useState<File[]>([]);
   const [showUploadModal, setShowUploadModal] = useState(false);
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
   /* unified form state */
   const [formData, setFormData] = useState({
@@ -101,6 +102,12 @@ const SignUp: React.FC = () => {
         alert('Please fill in all required fields');
         return;
       }
+      
+      // Basic password validation
+      if (formData.password.length < 6) {
+        alert('Password must be at least 6 characters long');
+        return;
+      }
     }
     setCurrentStep(2);
   };
@@ -108,6 +115,7 @@ const SignUp: React.FC = () => {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    setIsSubmitting(true);
 
     /* basic validation for business questions */
     const requiredBusiness = [
@@ -117,11 +125,14 @@ const SignUp: React.FC = () => {
     for (const f of requiredBusiness) {
       if (!formData[f]) {
         alert('Please answer all business questions');
+        setIsSubmitting(false);
         return;
       }
     }
 
     try {
+      console.log('Starting signup process...');
+      
       /* Step 1: Sign up the user with Supabase Auth */
       const { data: authData, error: authError } = await supabase.auth.signUp({
         email: formData.email,
@@ -129,45 +140,52 @@ const SignUp: React.FC = () => {
       });
 
       if (authError) {
-        console.error('❌ Supabase auth error:', authError.message);
+        console.error('❌ Supabase auth error:', authError);
         alert('Authentication failed: ' + authError.message);
+        setIsSubmitting(false);
         return;
       }
 
       if (!authData.user) {
+        console.error('❌ No user returned from auth');
         alert('Authentication failed - no user returned');
+        setIsSubmitting(false);
         return;
       }
 
-      /* Step 2: Insert user profile data with the authenticated user's ID */
+      console.log('✅ User authenticated:', authData.user.id);
+
+      /* Step 2: Insert user profile data */
+      const profileData = {
+        id: authData.user.id,
+        name: formData.name,
+        country: formData.country,
+        business_type: formData.businessType,
+        weekly_transactions: formData.weeklyTransactions,
+        monthly_revenue: formData.monthlyRevenue,
+        record_keeping: formData.recordKeeping,
+        mobile_money: formData.mobileMoney,
+        social_media_promotion: formData.socialMediaPromotion,
+        communication_method: formData.communicationMethod,
+        staff_count: formData.staffCount,
+        business_duration: formData.businessDuration,
+      };
+
+      console.log('Inserting profile data:', profileData);
+
       const { data, error } = await supabase
         .from('users')
-        .insert([
-          {
-            /* use the authenticated user's ID */
-            id: authData.user.id,
-            /* basic */
-            name: formData.name,
-            country: formData.country,
-            business_type: formData.businessType,
-            /* business answers 1-col-per-field */
-            weekly_transactions: formData.weeklyTransactions,
-            monthly_revenue: formData.monthlyRevenue,
-            record_keeping: formData.recordKeeping,
-            mobile_money: formData.mobileMoney,
-            social_media_promotion: formData.socialMediaPromotion,
-            communication_method: formData.communicationMethod,
-            staff_count: formData.staffCount,
-            business_duration: formData.businessDuration,
-          },
-        ])
+        .insert([profileData])
         .select();
 
       if (error) {
-        console.error('❌ Supabase insert error:', error.message);
-        alert('Something went wrong – please try again.');
+        console.error('❌ Supabase insert error:', error);
+        alert('Failed to save profile: ' + error.message);
+        setIsSubmitting(false);
         return;
       }
+
+      console.log('✅ Profile data saved:', data);
 
       // Store user data and uploaded files in localStorage
       localStorage.setItem('userId', authData.user.id);
@@ -183,10 +201,12 @@ const SignUp: React.FC = () => {
         ));
       }
       
+      console.log('✅ Registration complete, navigating to eligibility...');
       navigate('/eligibility');
     } catch (error) {
       console.error('❌ Unexpected error:', error);
       alert('An unexpected error occurred. Please try again.');
+      setIsSubmitting(false);
     }
   };
 
@@ -220,6 +240,7 @@ const SignUp: React.FC = () => {
             value={formData.email} onChange={handleInputChange}
             placeholder="Enter your email address"
             className="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
+            disabled={isSubmitting}
           />
         </div>
       </div>
@@ -236,6 +257,7 @@ const SignUp: React.FC = () => {
             value={formData.password} onChange={handleInputChange}
             placeholder="Create a secure password"
             className="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
+            disabled={isSubmitting}
           />
         </div>
         <p className="text-xs text-gray-500 mt-1">
@@ -255,6 +277,7 @@ const SignUp: React.FC = () => {
             value={formData.name} onChange={handleInputChange}
             placeholder="Enter your full name"
             className="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
+            disabled={isSubmitting}
           />
         </div>
       </div>
@@ -270,6 +293,7 @@ const SignUp: React.FC = () => {
             id="country" name="country" required
             value={formData.country} onChange={handleInputChange}
             className="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-lg appearance-none bg-white focus:ring-2 focus:ring-blue-500"
+            disabled={isSubmitting}
           >
             <option value="">Select your country</option>
             {countries.map(c => <option key={c} value={c}>{c}</option>)}
@@ -293,6 +317,7 @@ const SignUp: React.FC = () => {
             id="businessType" name="businessType" required
             value={formData.businessType} onChange={handleInputChange}
             className="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-lg appearance-none bg-white focus:ring-2 focus:ring-blue-500"
+            disabled={isSubmitting}
           >
             <option value="">Select business type</option>
             {businessTypes.map(t => <option key={t} value={t}>{t}</option>)}
@@ -316,6 +341,7 @@ const SignUp: React.FC = () => {
         <button
           type="button" onClick={handleConnectData}
           className="w-full py-3 border-2 border-blue-600 text-blue-600 rounded-lg font-semibold hover:bg-blue-600 hover:text-white transition-colors"
+          disabled={isSubmitting}
         >
           Upload Documents
         </button>
@@ -338,7 +364,8 @@ const SignUp: React.FC = () => {
       {/* continue button */}
       <button
         type="button" onClick={handleNextStep}
-        className="w-full py-4 bg-gradient-to-r from-blue-600 to-purple-600 text-white rounded-lg font-semibold flex items-center justify-center space-x-2 hover:shadow-lg transition-all duration-200"
+        className="w-full py-4 bg-gradient-to-r from-blue-600 to-purple-600 text-white rounded-lg font-semibold flex items-center justify-center space-x-2 hover:shadow-lg transition-all duration-200 disabled:opacity-50"
+        disabled={isSubmitting}
       >
         <span>Continue to Business Questions</span>
         <ArrowRight className="w-5 h-5"/>
@@ -365,6 +392,7 @@ const SignUp: React.FC = () => {
                 checked={formData.weeklyTransactions === option}
                 onChange={handleInputChange}
                 className="mr-3 text-blue-600"
+                disabled={isSubmitting}
               />
               <span>{option}</span>
             </label>
@@ -388,6 +416,7 @@ const SignUp: React.FC = () => {
                 checked={formData.monthlyRevenue === option}
                 onChange={handleInputChange}
                 className="mr-3 text-blue-600"
+                disabled={isSubmitting}
               />
               <span>{option}</span>
             </label>
@@ -411,6 +440,7 @@ const SignUp: React.FC = () => {
                 checked={formData.recordKeeping === option}
                 onChange={handleInputChange}
                 className="mr-3 text-blue-600"
+                disabled={isSubmitting}
               />
               <span>{option}</span>
             </label>
@@ -434,6 +464,7 @@ const SignUp: React.FC = () => {
                 checked={formData.mobileMoney === option}
                 onChange={handleInputChange}
                 className="mr-3 text-blue-600"
+                disabled={isSubmitting}
               />
               <span>{option}</span>
             </label>
@@ -457,6 +488,7 @@ const SignUp: React.FC = () => {
                 checked={formData.socialMediaPromotion === option}
                 onChange={handleInputChange}
                 className="mr-3 text-blue-600"
+                disabled={isSubmitting}
               />
               <span>{option}</span>
             </label>
@@ -480,6 +512,7 @@ const SignUp: React.FC = () => {
                 checked={formData.communicationMethod === option}
                 onChange={handleInputChange}
                 className="mr-3 text-blue-600"
+                disabled={isSubmitting}
               />
               <span>{option}</span>
             </label>
@@ -503,6 +536,7 @@ const SignUp: React.FC = () => {
                 checked={formData.staffCount === option}
                 onChange={handleInputChange}
                 className="mr-3 text-blue-600"
+                disabled={isSubmitting}
               />
               <span>{option}</span>
             </label>
@@ -526,6 +560,7 @@ const SignUp: React.FC = () => {
                 checked={formData.businessDuration === option}
                 onChange={handleInputChange}
                 className="mr-3 text-blue-600"
+                disabled={isSubmitting}
               />
               <span>{option}</span>
             </label>
@@ -538,15 +573,24 @@ const SignUp: React.FC = () => {
         <button
           type="button"
           onClick={handlePrevStep}
-          className="flex-1 py-3 border border-gray-300 text-gray-700 rounded-lg font-semibold hover:bg-gray-50 transition-colors"
+          className="flex-1 py-3 border border-gray-300 text-gray-700 rounded-lg font-semibold hover:bg-gray-50 transition-colors disabled:opacity-50"
+          disabled={isSubmitting}
         >
           Back
         </button>
         <button
           type="submit"
-          className="flex-1 py-3 bg-gradient-to-r from-blue-600 to-purple-600 text-white rounded-lg font-semibold hover:shadow-lg transition-all duration-200"
+          className="flex-1 py-3 bg-gradient-to-r from-blue-600 to-purple-600 text-white rounded-lg font-semibold hover:shadow-lg transition-all duration-200 disabled:opacity-50 flex items-center justify-center space-x-2"
+          disabled={isSubmitting}
         >
-          Complete Registration
+          {isSubmitting ? (
+            <>
+              <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-white"></div>
+              <span>Creating Account...</span>
+            </>
+          ) : (
+            <span>Complete Registration</span>
+          )}
         </button>
       </div>
     </div>
