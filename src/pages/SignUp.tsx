@@ -131,33 +131,11 @@ const SignUp: React.FC = () => {
     }
 
     try {
-      console.log('Starting signup process...');
+      console.log('🚀 Starting registration process...');
       
-      /* Step 1: Sign up the user with Supabase Auth */
-      const { data: authData, error: authError } = await supabase.auth.signUp({
-        email: formData.email,
-        password: formData.password,
-      });
-
-      if (authError) {
-        console.error('❌ Supabase auth error:', authError);
-        alert('Authentication failed: ' + authError.message);
-        setIsSubmitting(false);
-        return;
-      }
-
-      if (!authData.user) {
-        console.error('❌ No user returned from auth');
-        alert('Authentication failed - no user returned');
-        setIsSubmitting(false);
-        return;
-      }
-
-      console.log('✅ User authenticated:', authData.user.id);
-
-      /* Step 2: Insert user profile data */
+      // Insert into new user_profiles table
       const profileData = {
-        id: authData.user.id,
+        email: formData.email,
         name: formData.name,
         country: formData.country,
         business_type: formData.businessType,
@@ -171,10 +149,10 @@ const SignUp: React.FC = () => {
         business_duration: formData.businessDuration,
       };
 
-      console.log('Inserting profile data:', profileData);
+      console.log('📝 Inserting profile data:', profileData);
 
       const { data, error } = await supabase
-        .from('users')
+        .from('user_profiles')
         .insert([profileData])
         .select();
 
@@ -185,20 +163,23 @@ const SignUp: React.FC = () => {
         return;
       }
 
-      console.log('✅ Profile data saved:', data);
+      console.log('✅ Profile data saved successfully:', data);
 
       // Store user data and uploaded files in localStorage
-      localStorage.setItem('userId', authData.user.id);
-      localStorage.setItem('userProfile', JSON.stringify(formData));
-      if (uploadedFiles.length > 0) {
-        localStorage.setItem('uploadedDocuments', JSON.stringify(
-          uploadedFiles.map(file => ({
-            name: file.name,
-            size: file.size,
-            type: file.type,
-            uploadDate: new Date().toISOString()
-          }))
-        ));
+      if (data && data[0]) {
+        localStorage.setItem('userId', data[0].id);
+        localStorage.setItem('userProfile', JSON.stringify(formData));
+        
+        if (uploadedFiles.length > 0) {
+          localStorage.setItem('uploadedDocuments', JSON.stringify(
+            uploadedFiles.map(file => ({
+              name: file.name,
+              size: file.size,
+              type: file.type,
+              uploadDate: new Date().toISOString()
+            }))
+          ));
+        }
       }
       
       console.log('✅ Registration complete, navigating to eligibility...');
